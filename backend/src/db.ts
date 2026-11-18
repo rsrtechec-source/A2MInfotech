@@ -1,14 +1,21 @@
-import mysql from "mysql2/promise";
+import { Pool, types } from "pg";
 
-const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST ?? "localhost",
-  port: Number(process.env.MYSQL_PORT ?? 3306),
-  user: process.env.MYSQL_USER ?? "root",
-  password: process.env.MYSQL_PASSWORD ?? "",
-  database: process.env.MYSQL_DATABASE ?? "a2m_infotech",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL must be set to a PostgreSQL connection URL.");
+}
+
+types.setTypeParser(types.builtins.INT8, (value) => {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error("PostgreSQL integer exceeds JavaScript's safe integer range.");
+  }
+  return parsed;
+});
+
+const pool = new Pool({
+  connectionString,
+  ...(process.env.DATABASE_SSL === "true" ? { ssl: { rejectUnauthorized: true } } : {}),
 });
 
 export default pool;

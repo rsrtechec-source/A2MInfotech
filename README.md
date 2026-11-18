@@ -1,6 +1,6 @@
 # A2M Infotech learning and training-center platform
 
-An Expo mobile app backed by an Express API and MySQL. Role-aware student, trainer, and administrator workspaces support day-to-day training operations alongside learning and career development.
+An Expo mobile app backed by an Express API and PostgreSQL. Role-aware student, trainer, and administrator workspaces support day-to-day training operations alongside learning and career development.
 
 ## What is included
 
@@ -13,25 +13,26 @@ An Expo mobile app backed by an Express API and MySQL. Role-aware student, train
 - Admin-managed center expenses, plus staff leave requests with admin approval.
 - Role-specific dashboards, learner rosters, and a mobile operations hub for center administrators and trainers.
 - FAQ-style support assistant with a replaceable service boundary for a future AI provider.
-- MySQL schema, health endpoint, and request validation.
+- PostgreSQL schema, health endpoint, and request validation.
 
 ## Requirements
 
 - Node.js 20.18+ and npm.
-- MySQL 8+.
+- PostgreSQL.
 - Expo Go or an Android/iOS development environment.
 
 ## Setup
 
-1. Create a MySQL database and load the schema:
+1. Create a PostgreSQL database and load the schema. For a local database, for example:
 
    ```sh
-   mysql -u root -p < backend/sql/schema.sql
+   createdb a2m_infotech
+   psql -v ON_ERROR_STOP=1 -d a2m_infotech -f backend/sql/schema.sql
    ```
 
-   To add the new training-center tables to an existing installation, back up the database and run the same schema file again. The tables are created with `IF NOT EXISTS`.
+   For a hosted database, run `psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f backend/sql/schema.sql` using its connection URL. The schema can be run again to create missing tables and seed records; it does not migrate existing MySQL data. Back up and separately migrate any existing data before switching databases.
 
-2. Create `backend/.env` from `backend/.env.example`. Set the MySQL connection values and a long random `JWT_SECRET`.
+2. Create `backend/.env` from `backend/.env.example`. Set `DATABASE_URL` to the PostgreSQL connection URL and `JWT_SECRET` to a long random secret of at least 32 characters. Set `DATABASE_SSL=true` when the database requires TLS with a trusted certificate. Keep credentials out of Git.
 3. Install dependencies from the project root:
 
    ```sh
@@ -50,13 +51,17 @@ An Expo mobile app backed by an Express API and MySQL. Role-aware student, train
 
 ## First administrator
 
-Registration is intentionally student-only; clients cannot choose privileged roles. After registering a user, grant the first administrator role from MySQL:
+Registration is intentionally student-only; clients cannot choose privileged roles. After registering a user, grant the first administrator role in PostgreSQL:
 
 ```sql
 UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 ```
 
 Admins can create trainer accounts using `POST /api/users/trainers` (admin bearer token required).
+
+## PostgreSQL integration test
+
+Set `TEST_DATABASE_URL` to a disposable PostgreSQL database and run `npm --prefix backend run test:postgres`. The test creates and removes a uniquely named schema in that database.
 
 ## API overview
 
