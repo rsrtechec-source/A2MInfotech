@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "A2M Infotech",
+    "slug": "a2m-infotech",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#f4f7fb"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.a2minfotech.app"
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3bf7573e-1661-4741-95c7-bd5fe9b78006"
+      }
+    },
+    "owner": "rsrtechec"
+  }
+}

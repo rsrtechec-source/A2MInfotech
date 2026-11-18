@@ -1,0 +1,255 @@
+CREATE DATABASE IF NOT EXISTS a2m_infotech
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE a2m_infotech;
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('student', 'trainer', 'admin') NOT NULL DEFAULT 'student',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS courses (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(180) NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  description TEXT NOT NULL,
+  duration_weeks SMALLINT UNSIGNED NOT NULL DEFAULT 8,
+  trainer_id BIGINT UNSIGNED NULL,
+  published BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_courses_trainer FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS lessons (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+  CONSTRAINT fk_lessons_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS branches (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  city VARCHAR(120) NOT NULL,
+  address VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_branch_name_city (name, city)
+);
+
+CREATE TABLE IF NOT EXISTS batches (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT UNSIGNED NOT NULL,
+  trainer_id BIGINT UNSIGNED NULL,
+  branch_id BIGINT UNSIGNED NULL,
+  name VARCHAR(120) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NULL,
+  capacity SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+  status ENUM('upcoming', 'active', 'completed') NOT NULL DEFAULT 'upcoming',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_batches_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  CONSTRAINT fk_batches_trainer FOREIGN KEY (trainer_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_batches_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS batch_enrollments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  batch_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  enrolled_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_batch_student (batch_id, student_id),
+  CONSTRAINT fk_batch_enrollments_batch FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE,
+  CONSTRAINT fk_batch_enrollments_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS enrollments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  course_id BIGINT UNSIGNED NOT NULL,
+  enrolled_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_enrollment (user_id, course_id),
+  CONSTRAINT fk_enrollments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_enrollments_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  user_id BIGINT UNSIGNED NOT NULL,
+  lesson_id BIGINT UNSIGNED NOT NULL,
+  completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, lesson_id),
+  CONSTRAINT fk_progress_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_progress_lesson FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(180) NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS placements (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company VARCHAR(160) NOT NULL,
+  role_title VARCHAR(180) NOT NULL,
+  location VARCHAR(120) NOT NULL,
+  description TEXT NOT NULL,
+  application_url VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS attendance (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  batch_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  attendance_date DATE NOT NULL,
+  status ENUM('present', 'absent', 'late') NOT NULL,
+  marked_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_batch_student_attendance (batch_id, student_id, attendance_date),
+  CONSTRAINT fk_attendance_batch FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attendance_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_attendance_marker FOREIGN KEY (marked_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT UNSIGNED NOT NULL,
+  course_id BIGINT UNSIGNED NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
+  due_date DATE NULL,
+  status ENUM('pending', 'partial', 'paid', 'overdue') NOT NULL DEFAULT 'pending',
+  notes VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_invoices_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_invoices_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  category VARCHAR(100) NOT NULL,
+  description VARCHAR(500) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  transaction_date DATE NOT NULL,
+  branch_id BIGINT UNSIGNED NULL,
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_expenses_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
+  CONSTRAINT fk_expenses_creator FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS leads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(255) NULL,
+  phone VARCHAR(40) NULL,
+  source VARCHAR(80) NOT NULL DEFAULT 'Website',
+  interest VARCHAR(180) NULL,
+  status ENUM('new', 'contacted', 'qualified', 'enrolled', 'lost') NOT NULL DEFAULT 'new',
+  notes TEXT NULL,
+  assigned_to BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_leads_assignee FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS staff_leave_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  reason VARCHAR(1000) NOT NULL,
+  status ENUM('pending', 'approved', 'declined') NOT NULL DEFAULT 'pending',
+  approved_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_leave_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_leave_approver FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS assessments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT UNSIGNED NOT NULL,
+  batch_id BIGINT UNSIGNED NULL,
+  title VARCHAR(180) NOT NULL,
+  assessment_type ENUM('quiz', 'assignment', 'project') NOT NULL DEFAULT 'assignment',
+  due_date DATE NULL,
+  max_score DECIMAL(7,2) NOT NULL DEFAULT 100,
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_assessments_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assessments_batch FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE SET NULL,
+  CONSTRAINT fk_assessments_creator FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS assessment_submissions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  assessment_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  submission_text TEXT NOT NULL,
+  score DECIMAL(7,2) NULL,
+  submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_assessment_student (assessment_id, student_id),
+  CONSTRAINT fk_submissions_assessment FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_submissions_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS certificates (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT UNSIGNED NOT NULL,
+  course_id BIGINT UNSIGNED NOT NULL,
+  certificate_code VARCHAR(64) NOT NULL UNIQUE,
+  issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_certificate_student_course (student_id, course_id),
+  CONSTRAINT fk_certificates_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_certificates_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS internships (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company VARCHAR(160) NOT NULL,
+  role_title VARCHAR(180) NOT NULL,
+  location VARCHAR(120) NOT NULL,
+  description TEXT NOT NULL,
+  application_url VARCHAR(500) NULL,
+  status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_internships_creator FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+INSERT INTO courses (title, category, description, duration_weeks)
+SELECT 'Full-Stack Web Development', 'Web Development', 'Build responsive web applications with modern frontend and backend tools.', 16
+WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Full-Stack Web Development');
+INSERT INTO courses (title, category, description, duration_weeks)
+SELECT 'Mobile App Development with React Native', 'Mobile Development', 'Design, build, and ship cross-platform mobile applications.', 12
+WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Mobile App Development with React Native');
+INSERT INTO courses (title, category, description, duration_weeks)
+SELECT 'AI, Chatbots & Data Analytics', 'AI & Data', 'Explore practical AI, chatbot workflows, and data-driven decision making.', 10
+WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'AI, Chatbots & Data Analytics');
+INSERT INTO courses (title, category, description, duration_weeks)
+SELECT 'Cloud & DevOps Foundations', 'Cloud & DevOps', 'Learn cloud fundamentals, CI/CD, containers, and deployment practices.', 10
+WHERE NOT EXISTS (SELECT 1 FROM courses WHERE title = 'Cloud & DevOps Foundations');
+
+INSERT INTO lessons (course_id, title, sort_order)
+SELECT c.id, lesson.title, lesson.sort_order
+FROM courses c
+JOIN (
+  SELECT 'Full-Stack Web Development' AS course_title, 'Web foundations and responsive UI' AS title, 1 AS sort_order
+  UNION ALL SELECT 'Full-Stack Web Development', 'APIs, databases, and application logic', 2
+  UNION ALL SELECT 'Full-Stack Web Development', 'Testing and deploying your project', 3
+  UNION ALL SELECT 'Mobile App Development with React Native', 'Mobile UI and React Native basics', 1
+  UNION ALL SELECT 'Mobile App Development with React Native', 'Navigation, data, and device features', 2
+  UNION ALL SELECT 'Mobile App Development with React Native', 'Build and publish a mobile app', 3
+  UNION ALL SELECT 'AI, Chatbots & Data Analytics', 'Data analysis and visualization essentials', 1
+  UNION ALL SELECT 'AI, Chatbots & Data Analytics', 'AI and chatbot foundations', 2
+  UNION ALL SELECT 'AI, Chatbots & Data Analytics', 'Build a practical analytics project', 3
+  UNION ALL SELECT 'Cloud & DevOps Foundations', 'Cloud infrastructure essentials', 1
+  UNION ALL SELECT 'Cloud & DevOps Foundations', 'CI/CD, containers, and automation', 2
+  UNION ALL SELECT 'Cloud & DevOps Foundations', 'Deploy and monitor a service', 3
+) lesson ON lesson.course_title = c.title
+WHERE NOT EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id);

@@ -1,0 +1,13 @@
+{
+  "name": "a2m-infotech-platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n api,mobile -c blue,green \"npm:dev:api\" \"npm:dev:mobile\"",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:mobile": "npm --prefix mobile run start",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix mobile run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
